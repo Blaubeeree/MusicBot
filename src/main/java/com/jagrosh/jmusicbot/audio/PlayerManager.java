@@ -40,7 +40,17 @@ import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.IpBlock;
 import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv4Block;
 import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv6Block;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
+import dev.lavalink.youtube.clients.Android;
+import dev.lavalink.youtube.clients.AndroidMusic;
+import dev.lavalink.youtube.clients.AndroidVr;
+import dev.lavalink.youtube.clients.ClientOptions;
+import dev.lavalink.youtube.clients.Ios;
+import dev.lavalink.youtube.clients.MWeb;
+import dev.lavalink.youtube.clients.Music;
+import dev.lavalink.youtube.clients.Tv;
+import dev.lavalink.youtube.clients.TvHtml5Simply;
 import dev.lavalink.youtube.clients.Web;
+import dev.lavalink.youtube.clients.WebEmbedded;
 import net.dv8tion.jda.api.entities.Guild;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +78,7 @@ public class PlayerManager extends DefaultAudioPlayerManager
     {
         TransformativeAudioSourceManager.createTransforms(bot.getConfig().getTransforms()).forEach(t -> registerSourceManager(t));
         
-        YoutubeAudioSourceManager yt = new YoutubeAudioSourceManager(true);
+        YoutubeAudioSourceManager yt = setupYoutubeAudioSourceManager();
         if (config.getYTRoutingPlanner() != YouTubeUtil.RoutingPlanner.NONE)
         {
             AbstractRoutePlanner routePlanner = YouTubeUtil.createRouterPlanner(config.getYTRoutingPlanner(), config.getYTIpBlocks());
@@ -85,7 +95,15 @@ public class PlayerManager extends DefaultAudioPlayerManager
         registerSourceManager(SoundCloudAudioSourceManager.createDefault());
         registerSourceManager(new BandcampAudioSourceManager());
         registerSourceManager(new VimeoAudioSourceManager());
-        registerSourceManager(new TwitchStreamAudioSourceManager());
+        try
+        {
+            registerSourceManager(new TwitchStreamAudioSourceManager());
+        }
+        catch(Exception e)
+        {
+            LOGGER.warn("Skipping Twitch source initialization because Twitch lookup failed during startup: {}", e.getMessage());
+            LOGGER.debug("Twitch source initialization failure:", e);
+        }
         registerSourceManager(new BeamAudioSourceManager());
         registerSourceManager(new GetyarnAudioSourceManager());
         registerSourceManager(new NicoAudioSourceManager());
@@ -98,7 +116,20 @@ public class PlayerManager extends DefaultAudioPlayerManager
 
     private YoutubeAudioSourceManager setupYoutubeAudioSourceManager()
     {
-        YoutubeAudioSourceManager yt = new YoutubeAudioSourceManager(true);
+        ClientOptions playbackOnly = new ClientOptions();
+        playbackOnly.setSearching(false);
+
+        YoutubeAudioSourceManager yt = new YoutubeAudioSourceManager(true,
+                new Ios(playbackOnly),
+                new Music(playbackOnly),
+                new AndroidMusic(playbackOnly),
+                new TvHtml5Simply(playbackOnly),
+                new Tv(playbackOnly),
+                new Web(),
+                new MWeb(),
+                new WebEmbedded(),
+                new AndroidVr(playbackOnly),
+                new Android(playbackOnly));
         yt.setPlaylistPageCount(bot.getConfig().getMaxYTPlaylistPages());
 
         // OAuth2 setup
